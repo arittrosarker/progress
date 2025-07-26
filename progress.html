@@ -7,15 +7,16 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <!-- Firebase App (the core Firebase SDK) -->
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+Bengali:wght@400;700&display=swap" rel="stylesheet">
   <style>
     .bangla-text {
       font-family: 'Noto Serif Bengali', serif;
     }
   </style>
+  <!-- Firebase JS SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 </head>
 <body class="bg-gray-900 text-gray-100 min-h-screen flex">
   <!-- Header -->
@@ -23,8 +24,6 @@
     <div class="bg-gray-900 bg-opacity-95 rounded-full px-4 sm:px-6 py-2 shadow flex items-center gap-2 sm:gap-3 pointer-events-auto border border-gray-200 text-wrap max-w-[90vw]">
       <span class="text-blue-400 text-lg sm:text-2xl font-bold">📚</span>
       <span class="text-base sm:text-xl font-semibold tracking-wide">PoralAgbe Study Tracker</span>
-      <span id="userDisplay" class="ml-4 text-xs sm:text-base text-green-400 font-bold"></span>
-      <button id="logoutBtn" class="ml-2 px-2 py-1 rounded bg-red-600 text-white text-xs font-bold hover:bg-red-700 transition pointer-events-auto hidden">Logout</button>
     </div>
   </header>
   <!-- Mobile Sidebar -->
@@ -82,108 +81,6 @@
   </div>
 
   <script>
-    // --- Firebase Setup ---
-    const firebaseConfig = {
-      apiKey: "AIzaSyAx3b-2EPm2qPjYu6L07GCCKAkoF_z1sF0",
-      authDomain: "poralagbe-17c0e.firebaseapp.com",
-      databaseURL: "https://poralagbe-17c0e-default-rtdb.firebaseio.com",
-      projectId: "poralagbe-17c0e",
-      storageBucket: "poralagbe-17c0e.firebasestorage.app",
-      messagingSenderId: "380156491503",
-      appId: "1:380156491503:web:9983033564385f0b5d8d1a"
-    };
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.database();
-
-    // --- User Auth State ---
-    let userKey = null; // username
-
-    // --- Ensure chapterSearchValue is always defined ---
-    let chapterSearchValue = '';
-
-    // --- Auth Modal Logic ---
-    async function showLoginModal() {
-      return Swal.fire({
-        title: 'Login',
-        html: `
-          <input id="swal-username" class="swal2-input" placeholder="Username" autocomplete="username" />
-          <input id="swal-password" class="swal2-input" placeholder="Password" type="password" autocomplete="current-password" />
-          <div class="mt-2 text-xs text-blue-400">Don't have an account? <a href="#" id="swal-goto-register" class="underline text-blue-500">Register</a></div>
-        `,
-        showCancelButton: false,
-        confirmButtonText: 'Login',
-        allowOutsideClick: false,
-        didOpen: () => {
-          document.getElementById('swal-goto-register').onclick = (e) => {
-            e.preventDefault();
-            Swal.close();
-            showRegisterModal().then(handleAuthResult);
-          };
-        },
-        preConfirm: async () => {
-          const username = document.getElementById('swal-username').value.trim();
-          const password = document.getElementById('swal-password').value;
-          if (!username || !password) {
-            Swal.showValidationMessage('Enter username and password');
-            return false;
-          }
-          const snap = await db.ref('users/' + username).get();
-          if (!snap.exists()) {
-            Swal.showValidationMessage('No such user');
-            return false;
-          }
-          if (snap.val().password !== password) {
-            Swal.showValidationMessage('Wrong password');
-            return false;
-          }
-          return { username, password, isNew: false };
-        }
-      });
-    }
-
-    async function showRegisterModal() {
-      return Swal.fire({
-        title: 'Register',
-        html: `
-          <input id="swal-username" class="swal2-input" placeholder="Username" autocomplete="username" />
-          <input id="swal-password" class="swal2-input" placeholder="Password" type="password" autocomplete="new-password" />
-          <div class="mt-2 text-xs text-blue-400">Already have an account? <a href="#" id="swal-goto-login" class="underline text-blue-500">Login</a></div>
-        `,
-        showCancelButton: false,
-        confirmButtonText: 'Register',
-        allowOutsideClick: false,
-        didOpen: () => {
-          document.getElementById('swal-goto-login').onclick = (e) => {
-            e.preventDefault();
-            Swal.close();
-            showLoginModal().then(handleAuthResult);
-          };
-        },
-        preConfirm: async () => {
-          const username = document.getElementById('swal-username').value.trim();
-          const password = document.getElementById('swal-password').value;
-          if (!username || !password) {
-            Swal.showValidationMessage('Enter username and password');
-            return false;
-          }
-          const snap = await db.ref('users/' + username).get();
-          if (snap.exists()) {
-            Swal.showValidationMessage('Username already taken');
-            return false;
-          }
-          await db.ref('users/' + username).set({
-            password,
-            state: null,
-            statusConfig: null,
-            currentSubject: null,
-            theme: null
-          });
-          return { username, password, isNew: true };
-        }
-      });
-    }
-
-    // --- State Variables ---
     const subjects = ['Bangla 1st','Bangla 2nd','English 1st','English 2nd','Physics 1st','Physics 2nd','Chemistry 1st','Chemistry 2nd','Biology 1st','Biology 2nd','Higher Math 1st','Higher Math 2nd','ICT'];
     let statusConfig = {
       'Physics 1st': ['Main Book','Parallel Text','Math Solving','MCQ','CQ','Concept Book','Eng QB','DU QB'],
@@ -337,53 +234,115 @@
     let lastRenderedSubject = null;
     let lastChapterCount = 0;
 
-    // --- Firebase Data Sync ---
-    async function loadUserData(username) {
-      const snap = await db.ref('users/' + username).get();
-      if (snap.exists()) {
-        const data = snap.val();
-        state = data.state || {};
-        statusConfig = data.statusConfig || {};
-        currentSubject = data.currentSubject || subjects[0];
-        isDark = data.theme !== 'light';
-        // Ensure all subjects exist and are arrays
-        subjects.forEach(sub => {
-          if (!Array.isArray(state[sub])) state[sub] = [];
-          if (!Array.isArray(statusConfig[sub])) statusConfig[sub] = [];
-        });
-      } else {
-        // New user: use default state
-        state = {};
-        statusConfig = {};
-        subjects.forEach(sub => {
-          state[sub] = [];
-          statusConfig[sub] = [];
-        });
-        currentSubject = subjects[0];
-        isDark = true;
-      }
-    }
-    async function saveUserData() {
-      if (!userKey) return;
-      await db.ref('users/' + userKey).update({
-        state,
-        statusConfig,
-        currentSubject,
-        theme: isDark ? 'dark' : 'light'
+    // --- Firebase Setup ---
+    const firebaseConfig = {
+      apiKey: "AIzaSyAx3b-2EPm2qPjYu6L07GCCKAkoF_z1sF0",
+      authDomain: "poralagbe-17c0e.firebaseapp.com",
+      databaseURL: "https://poralagbe-17c0e-default-rtdb.firebaseio.com",
+      projectId: "poralagbe-17c0e",
+      storageBucket: "poralagbe-17c0e.firebasestorage.app",
+      messagingSenderId: "380156491503",
+      appId: "1:380156491503:web:9983033564385f0b5d8d1a"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.database();
+
+    let firebaseUserId = null;
+    let firebaseLoaded = false;
+    let firebaseWritePending = false;
+
+    // Sign in anonymously and load data
+    auth.signInAnonymously().then(userCred => {
+      firebaseUserId = userCred.user.uid;
+      // Listen for changes in user's data
+      db.ref('users/' + firebaseUserId).on('value', snapshot => {
+        const data = snapshot.val();
+        if (data) {
+          state = data.state || state;
+          statusConfig = data.statusConfig || statusConfig;
+          // Ensure all subjects exist
+          subjects.forEach(sub => {
+            state[sub] = state[sub] || [];
+            statusConfig[sub] = statusConfig[sub] || [];
+          });
+        } else {
+          // First time: initialize
+          subjects.forEach(sub => {
+            state[sub] = state[sub] || [];
+            statusConfig[sub] = statusConfig[sub] || [];
+          });
+        }
+        firebaseLoaded = true;
+        render();
       });
-      renderProgressBar();
+    }).catch(e => {
+      showToast('error', 'Firebase auth failed');
+    });
+
+    // Save state/statusConfig to Firebase (debounced)
+    function saveStateToFirebase() {
+      if (!firebaseUserId) return;
+      if (!firebaseLoaded) return;
+      if (firebaseWritePending) return;
+      firebaseWritePending = true;
+      setTimeout(() => {
+        db.ref('users/' + firebaseUserId).set({
+          state,
+          statusConfig
+        }).then(() => {
+          firebaseWritePending = false;
+          renderProgressBar();
+        }).catch(() => {
+          firebaseWritePending = false;
+          showToast('error', 'Failed to save to Firebase');
+        });
+      }, 200);
     }
 
-    // --- Theme toggle ---
-    let isDark = true;
-    function applyTheme() {
-      document.body.classList.toggle('bg-gray-900', isDark);
-      document.body.classList.toggle('text-gray-100', isDark);
-      document.body.classList.toggle('bg-white', !isDark);
-      document.body.classList.toggle('text-gray-900', !isDark);
+    // Replace saveState with Firebase version
+    const saveState = saveStateToFirebase;
+
+    // Remove all localStorage usage for state/statusConfig
+    // Only keep currentSubject and theme in localStorage
+
+    // Load currentSubject from localStorage
+    try {
+      currentSubject = localStorage.getItem('currentSubject') || subjects[0];
+    } catch (e) {
+      showToast('error', 'Failed to load current subject from localStorage.');
     }
 
-    // --- Helper for toast ---
+    // Debounce saveState to avoid excessive localStorage writes
+    let saveTimeout;
+    const saveStateDebounced = () => {
+      clearTimeout(saveTimeout);
+      saveTimeout = setTimeout(() => {
+        try {
+          localStorage.setItem('studyState', JSON.stringify(state));
+          localStorage.setItem('statusConfig', JSON.stringify(statusConfig));
+          renderProgressBar();
+        } catch (e) {
+          showToast('error', 'Failed to save data to localStorage. It may be full or disabled.');
+        }
+      }, 200);
+    };
+
+    const saveNav = () => {
+      try {
+        localStorage.setItem('currentSubject', currentSubject);
+      } catch (e) {
+        showToast('error', 'Failed to save current subject to localStorage.');
+      }
+    };
+
+    function toggleSidebar() {
+      document.getElementById('mobileSidebar').classList.toggle('-translate-x-full');
+      document.getElementById('overlay').classList.toggle('hidden');
+    }
+
+    // Helper for toast
     function showToast(icon, title) {
       Swal.fire({
         toast: true,
@@ -396,66 +355,307 @@
       });
     }
 
-    // --- Auth Flow ---
-    async function handleAuthResult(result) {
-      if (!result || !result.value) return;
-      userKey = result.value.username;
-      sessionStorage.setItem('poralagbe_user', userKey);
-      document.getElementById('userDisplay').textContent = '👤 ' + userKey;
-      document.getElementById('logoutBtn').classList.remove('hidden');
-      await loadUserData(userKey);
-      applyTheme();
-      render();
+    // Theme toggle
+    let isDark = true;
+    try {
+      isDark = localStorage.getItem('theme') !== 'light';
+    } catch (e) {
+      showToast('error', 'Failed to load theme from localStorage.');
     }
-
-    async function mainAppFlow() {
-      // Try auto-login from sessionStorage
-      const savedUser = sessionStorage.getItem('poralagbe_user');
-      if (savedUser) {
-        userKey = savedUser;
-        document.getElementById('userDisplay').textContent = '👤 ' + userKey;
-        document.getElementById('logoutBtn').classList.remove('hidden');
-        await loadUserData(userKey);
-        applyTheme();
-        render();
-        return;
-      }
-      // Show login modal
-      showLoginModal().then(handleAuthResult);
+    function applyTheme() {
+      document.body.classList.toggle('bg-gray-900', isDark);
+      document.body.classList.toggle('text-gray-100', isDark);
+      document.body.classList.toggle('bg-white', !isDark);
+      document.body.classList.toggle('text-gray-900', !isDark);
     }
+    applyTheme();
 
-    // --- Logout ---
-    document.addEventListener('DOMContentLoaded', () => {
-      const logoutBtn = document.getElementById('logoutBtn');
-      logoutBtn.onclick = () => {
-        sessionStorage.removeItem('poralagbe_user');
-        userKey = null;
-        document.getElementById('userDisplay').textContent = '';
-        logoutBtn.classList.add('hidden');
-        // Clear UI and show login modal again
-        document.getElementById('chapterContainer').innerHTML = '';
-        document.getElementById('subjectNav').innerHTML = '';
-        mainAppFlow();
+    // Tools Dropdown Toggle
+    document.getElementById('toolsBtn').onclick = (e) => {
+      e.preventDefault();
+      const dropdown = document.getElementById('toolsDropdown');
+      dropdown.classList.toggle('hidden');
+    };
+
+    // Export
+    document.getElementById('exportBtn').onclick = () => {
+      const dataStr = JSON.stringify({ state, statusConfig }, null, 2);
+      const blob = new Blob([dataStr], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'study-progress.json';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      showToast('success', 'Exported!');
+      document.getElementById('toolsDropdown').classList.add('hidden');
+    };
+
+    // Import
+    document.getElementById('importBtn').onclick = () => {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'application/json';
+      input.onchange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        try {
+          const text = await file.text();
+          const imported = JSON.parse(text);
+          if (typeof imported === 'object' && imported.state && imported.statusConfig) {
+            state = imported.state;
+            statusConfig = imported.statusConfig;
+            subjects.forEach(sub => {
+              state[sub] = state[sub] || [];
+              statusConfig[sub] = statusConfig[sub] || [];
+            });
+            saveState();
+            render();
+            showToast('success', 'Imported!');
+          } else {
+            showToast('error', 'Invalid file');
+          }
+        } catch {
+          showToast('error', 'Import failed');
+        }
       };
+      input.click();
+      document.getElementById('toolsDropdown').classList.add('hidden');
+    };
+
+    // Theme Toggle
+    document.getElementById('themeToggleBtn').onclick = () => {
+      isDark = !isDark;
+      try {
+        localStorage.setItem('theme', isDark ? 'dark' : 'light');
+      } catch (e) {
+        showToast('error', 'Failed to save theme to localStorage.');
+      }
+      applyTheme();
+      showToast('success', isDark ? 'Dark mode' : 'Light mode');
+      document.getElementById('toolsDropdown').classList.add('hidden');
+    };
+
+    // Clear All Data
+    document.getElementById('clearAllBtn').onclick = async () => {
+      const result = await Swal.fire({
+        title: 'Clear All Data',
+        text: 'This will delete all subjects, chapters, and statuses. Are you sure?',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Yes, clear all',
+        cancelButtonText: 'Cancel'
+      });
+      if (result.isConfirmed) {
+        try {
+          // Remove from Firebase
+          await db.ref('users/' + firebaseUserId).remove();
+          state = {};
+          statusConfig = {};
+          subjects.forEach(sub => {
+            state[sub] = state[sub] || [];
+            statusConfig[sub] = statusConfig[sub] || [];
+          });
+          currentSubject = subjects[0] || '';
+          render();
+          showToast('success', 'All data cleared');
+        } catch (e) {
+          showToast('error', 'Failed to clear data from Firebase');
+        }
+      }
+      document.getElementById('toolsDropdown').classList.add('hidden');
+    };
+
+    // Progress Chart
+    document.getElementById('progressChartBtn').onclick = () => {
+      const progressData = subjects.map(sub => {
+        const chapters = state[sub] || [];
+        const statuses = statusConfig[sub] || [];
+        const total = chapters.length * statuses.length;
+        let done = 0;
+        chapters.forEach(ch => {
+          statuses.forEach(st => {
+            if (ch.statuses[st]) done++;
+          });
+        });
+        const percent = total ? Math.round((done / total) * 100) : 0;
+        return { subject: sub, percent };
+      });
+
+      Swal.fire({
+        title: 'Progress Chart',
+        html: '<canvas id="progressChart" width="400" height="200"></canvas>',
+        didOpen: () => {
+          const ctx = document.getElementById('progressChart').getContext('2d');
+          new Chart(ctx, {
+            type: 'bar',
+            data: {
+              labels: progressData.map(d => d.subject),
+              datasets: [{
+                label: 'Completion %',
+                data: progressData.map(d => d.percent),
+                backgroundColor: 'rgba(54, 162, 235, 0.6)',
+                borderColor: 'rgba(54, 162, 235, 1)',
+                borderWidth: 1
+              }]
+            },
+            options: {
+              scales: {
+                y: {
+                  beginAtZero: true,
+                  max: 100
+                }
+              },
+              responsive: true,
+              maintainAspectRatio: false
+            }
+          });
+        },
+        width: '90vw',
+        maxWidth: '600px'
+      });
+      document.getElementById('toolsDropdown').classList.add('hidden');
+    };
+
+    // Edit Statuses
+    document.getElementById('editStatusesBtn').onclick = async () => {
+      const currentStatuses = statusConfig[currentSubject] || [];
+      const { value: newStatuses, isConfirmed } = await Swal.fire({
+        title: 'Edit Statuses',
+        html: `
+          <p>Edit statuses for ${currentSubject}. Separate each status with a comma.</p>
+          <textarea id="statusInput" class="w-full p-2 bg-gray-800 text-blue-400 rounded" rows="4" placeholder="e.g., New Status 1, New Status 2">${currentStatuses.join(', ')}</textarea>
+        `,
+        focusConfirm: false,
+        showCancelButton: true,
+        confirmButtonText: 'Save',
+        cancelButtonText: 'Cancel',
+        preConfirm: () => {
+          const input = document.getElementById('statusInput').value.trim();
+          if (!input) {
+            Swal.showValidationMessage('Please enter at least one status!');
+            return false;
+          }
+          const statuses = input.split(',').map(s => s.trim()).filter(s => s);
+          if (statuses.length === 0) {
+            Swal.showValidationMessage('Please enter at least one status!');
+            return false;
+          }
+          return statuses;
+        }
+      });
+
+      if (isConfirmed && newStatuses) {
+        // Map old statuses to new ones and initialize any new statuses
+        const oldStatuses = currentStatuses;
+        statusConfig[currentSubject] = newStatuses;
+
+        // Update statuses in all chapters of the current subject
+        state[currentSubject].forEach(ch => {
+          const newStatusesObj = {};
+          newStatuses.forEach((newSt, idx) => {
+            const oldSt = oldStatuses[idx];
+            newStatusesObj[newSt] = oldSt ? (ch.statuses[oldSt] || false) : false;
+          });
+          // Ensure all new statuses are present, even if they exceed old ones
+          newStatuses.forEach(newSt => {
+            if (!(newSt in newStatusesObj)) newStatusesObj[newSt] = false;
+          });
+          ch.statuses = newStatusesObj;
+        });
+
+        saveState();
+        render();
+        showToast('success', 'Statuses updated successfully');
+      }
+      document.getElementById('toolsDropdown').classList.add('hidden');
+    };
+
+    // Search with debouncing
+    let chapterSearchValue = '';
+    let universalSearchValue = '';
+    let searchTimeout;
+    let universalSearchTimeout;
+
+    document.getElementById('chapterSearch').addEventListener('input', e => {
+      clearTimeout(searchTimeout);
+      chapterSearchValue = e.target.value.toLowerCase();
+      searchTimeout = setTimeout(() => {
+        renderChapters();
+      }, 300);
     });
 
-    // --- Save/Load wrappers ---
-    // Debounce saveUserData to avoid excessive writes
-    let saveTimeout;
-    const saveState = () => {
-      clearTimeout(saveTimeout);
-      saveTimeout = setTimeout(() => {
-        saveUserData();
-      }, 200);
-    };
-    const saveNav = () => {
-      saveUserData();
-    };
+    document.getElementById('universalSearch').addEventListener('input', e => {
+      clearTimeout(universalSearchTimeout);
+      universalSearchValue = e.target.value.toLowerCase();
+      universalSearchTimeout = setTimeout(() => {
+        performUniversalSearch();
+      }, 300);
+    });
 
-    // --- Replace initial state loading/rendering with login flow ---
-    mainAppFlow();
+    function performUniversalSearch() {
+      const dropdown = document.getElementById('universalSearchDropdown');
+      if (!universalSearchValue) {
+        dropdown.classList.add('hidden');
+        return;
+      }
 
-    // --- All other event handlers and logic remain unchanged ---
+      const results = [];
+      subjects.forEach(sub => {
+        state[sub].forEach((ch, idx) => {
+          if (ch.title.toLowerCase().includes(universalSearchValue)) {
+            results.push({ subject: sub, chapter: ch, index: idx });
+          }
+        });
+      });
+
+      dropdown.innerHTML = '';
+      if (results.length > 0) {
+        results.slice(0, 10).forEach(result => {
+          const item = document.createElement('div');
+          item.textContent = `${result.subject} - ${result.chapter.title}`;
+          item.className = 'px-4 py-2 text-xs hover:bg-blue-900 cursor-pointer bangla-text';
+          item.onclick = () => {
+            currentSubject = result.subject;
+            saveNav();
+            render();
+            document.getElementById('chapterContainer').scrollTo(0, result.index * 200); // Approximate scroll to chapter
+            dropdown.classList.add('hidden');
+            document.getElementById('universalSearch').value = '';
+          };
+          dropdown.appendChild(item);
+        });
+        dropdown.classList.remove('hidden');
+      } else {
+        dropdown.classList.add('hidden');
+      }
+    }
+
+    // Progress bar with responsive design
+    function renderProgressBar() {
+      const wrapper = document.getElementById('progressBarWrapper');
+      const chapters = state[currentSubject];
+      const statuses = statusConfig[currentSubject] || [];
+      let total = chapters.length * statuses.length;
+      let done = 0;
+      chapters.forEach(ch => {
+        statuses.forEach(st => {
+          if (ch.statuses[st]) done++;
+        });
+      });
+      let percent = total ? Math.round((done / total) * 100) : 0;
+      wrapper.innerHTML = `
+        <div class="mb-2 flex items-center justify-between w-full">
+          <span class="text-xs sm:text-base text-blue-400 font-semibold">Progress: ${percent}%</span>
+          <span class="text-xs sm:text-sm text-gray-400 hidden sm:inline">${done}/${total} completed</span>
+        </div>
+        <div class="w-full h-2 sm:h-3 bg-gray-800 rounded-full">
+          <div class="h-2 sm:h-3 rounded-full bg-blue-500 transition-all" style="width:${percent}%;"></div>
+        </div>
+      `;
+    }
+
     document.getElementById('addChapterBtn').onclick = async () => {
       const { value: title, isConfirmed } = await Swal.fire({
         title: 'Add Chapter',
@@ -581,16 +781,14 @@
 
     function renderChapters() {
       const cont = document.getElementById('chapterContainer');
-      // Defensive: ensure state[currentSubject] is always an array
-      const chapters = Array.isArray(state[currentSubject]) ? state[currentSubject] : [];
+      const chapters = state[currentSubject];
       if (chapters.length === lastChapterCount && chapterSearchValue === '') return;
       lastChapterCount = chapters.length;
       cont.innerHTML = '';
       renderProgressBar();
       const statuses = statusConfig[currentSubject] || [];
-      // Defensive: ensure chapterSearchValue is defined
       const filteredChapters = chapterSearchValue
-        ? chapters.filter(ch => ch.title && ch.title.toLowerCase().includes(chapterSearchValue))
+        ? chapters.filter(ch => ch.title.toLowerCase().includes(chapterSearchValue))
         : chapters;
       filteredChapters.forEach((ch, i) => {
         const card = document.createElement('div');
@@ -793,17 +991,6 @@
       const universalSearch = document.getElementById('universalSearch');
       if (!universalSearch.contains(e.target) && !universalDropdown.contains(e.target)) {
         universalDropdown.classList.add('hidden');
-      }
-    });
-
-    // --- Add event listener for chapter search input ---
-    document.addEventListener('DOMContentLoaded', () => {
-      const chapterSearchInput = document.getElementById('chapterSearch');
-      if (chapterSearchInput) {
-        chapterSearchInput.addEventListener('input', (e) => {
-          chapterSearchValue = e.target.value.toLowerCase();
-          renderChapters();
-        });
       }
     });
   </script>
