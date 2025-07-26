@@ -1,0 +1,811 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PoralAgbe - Study Tracker</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Firebase App (the core Firebase SDK) -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+Bengali:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    .bangla-text {
+      font-family: 'Noto Serif Bengali', serif;
+    }
+  </style>
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen flex">
+  <!-- Header -->
+  <header class="w-full absolute top-0 left-0 z-50 flex items-center justify-center py-2 sm:py-4 pointer-events-none">
+    <div class="bg-gray-900 bg-opacity-95 rounded-full px-4 sm:px-6 py-2 shadow flex items-center gap-2 sm:gap-3 pointer-events-auto border border-gray-200 text-wrap max-w-[90vw]">
+      <span class="text-blue-400 text-lg sm:text-2xl font-bold">📚</span>
+      <span class="text-base sm:text-xl font-semibold tracking-wide">PoralAgbe Study Tracker</span>
+      <span id="userDisplay" class="ml-4 text-xs sm:text-base text-green-400 font-bold"></span>
+      <button id="logoutBtn" class="ml-2 px-2 py-1 rounded bg-red-600 text-white text-xs font-bold hover:bg-red-700 transition pointer-events-auto hidden">Logout</button>
+    </div>
+  </header>
+  <!-- Mobile Sidebar -->
+  <aside id="mobileSidebar" class="fixed inset-y-0 left-0 w-3/4 sm:w-64 max-w-[80vw] bg-gray-900 border-r border-gray-800 transform -translate-x-full transition-transform duration-200 ease-in-out z-50 shadow rounded-r-2xl">
+    <div class="p-4 flex justify-between items-center border-b border-gray-600">
+      <h2 class="text-base sm:text-lg font-semibold tracking-wide text-blue-400">Subjects</h2>
+      <button onclick="toggleSidebar()" class="text-gray-400 hover:text-blue-400 transition text-lg sm:text-xl">✕</button>
+    </div>
+    <nav class="p-4 space-y-2"></nav>
+  </aside>
+  <div id="overlay" class="fixed inset-0 bg-black bg-opacity-40 hidden z-40 transition"></div>
+
+  <!-- Main Wrapper -->
+  <div class="flex-1 flex flex-col pt-16 sm:pt-20 w-full min-w-0">
+    <!-- Top Bar: Subject Navigation & Add Chapter -->
+    <nav class="bg-gray-900 bg-opacity-95 p-4 flex flex-wrap gap-2 justify-between items-center shadow rounded-b-2xl border-b border-gray-800">
+      <div class="flex items-center space-x-2 flex-wrap">
+        <button class="sm:hidden text-blue-400 text-xl sm:text-2xl transition hover:scale-110" onclick="toggleSidebar()">☰</button>
+        <div id="subjectNav" class="hidden sm:flex sm:flex-wrap gap-2"></div>
+        <button id="addChapterBtn" class="px-3 sm:px-4 py-1 sm:py-2 bg-blue-500 rounded-full text-xs sm:text-sm font-semibold text-white hover:bg-blue-600 shadow transition">+ Chapter</button>
+      </div>
+      <div class="flex items-center gap-1 sm:gap-2 flex-wrap">
+        <button id="addSubjectBtn" class="px-2 sm:px-3 py-1 sm:py-2 bg-green-500 rounded-full text-xs font-semibold text-white hover:bg-green-600 shadow transition border border-green-700">+ Subject</button>
+        <button id="removeSubjectBtn" class="px-2 sm:px-3 py-1 sm:py-2 bg-red-500 rounded-full text-xs font-semibold text-white hover:bg-red-600 shadow transition border border-red-700">- Subject</button>
+        <div class="relative">
+          <input id="universalSearch" type="text" placeholder="Search all chapters..." class="px-2 sm:px-3 py-1 sm:py-2 bg-gray-800 rounded-full text-xs font-semibold text-blue-400 hover:bg-blue-900 shadow transition border border-gray-700 w-32 sm:w-40 focus:outline-none" />
+          <div id="universalSearchDropdown" class="absolute right-0 mt-2 w-48 sm:w-64 bg-gray-900 border border-blue-700 rounded shadow-lg hidden z-10 max-h-40 overflow-y-auto"></div>
+        </div>
+        <div class="relative">
+          <button id="toolsBtn" class="px-2 sm:px-3 py-1 sm:py-2 bg-gray-800 rounded-full text-xs font-semibold text-blue-400 hover:bg-blue-900 shadow transition border border-gray-700 focus:outline-none">
+            Tools ▼
+          </button>
+          <div id="toolsDropdown" class="absolute right-0 mt-2 w-48 bg-gray-900 border border-blue-700 rounded shadow-lg hidden z-10">
+            <button id="exportBtn" class="block w-full text-left px-4 py-2 text-xs hover:bg-blue-900">Export</button>
+            <button id="importBtn" class="block w-full text-left px-4 py-2 text-xs hover:bg-blue-900">Import</button>
+            <button id="themeToggleBtn" class="block w-full text-left px-4 py-2 text-xs hover:bg-blue-900">🌙/☀️</button>
+            <button id="clearAllBtn" class="block w-full text-left px-4 py-2 text-xs hover:bg-red-900 text-red-400">Clear All</button>
+            <button id="progressChartBtn" class="block w-full text-left px-4 py-2 text-xs hover:bg-purple-900 text-purple-400">Progress Chart</button>
+            <button id="editStatusesBtn" class="block w-full text-left px-4 py-2 text-xs hover:bg-green-900 text-green-400">Edit Statuses</button>
+          </div>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Progress Bar -->
+    <div id="progressBarWrapper" class="px-4 sm:px-6 pt-4 w-full"></div>
+
+    <!-- Search -->
+    <div class="px-4 sm:px-6 pt-2 flex flex-wrap gap-2 items-center w-full">
+      <input id="chapterSearch" type="text" placeholder="Search chapters in current subject..." class="flex-1 px-3 py-2 rounded bg-gray-800 text-blue-400 placeholder-gray-500 focus:outline-blue-400 transition mb-2 w-full min-w-0" />
+    </div>
+
+    <!-- Chapters Grid -->
+    <main id="chapterContainer" class="overflow-auto p-4 sm:p-6 grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 flex-1 w-full min-w-0"></main>
+  </div>
+
+  <script>
+    // --- Firebase Setup ---
+    const firebaseConfig = {
+      apiKey: "AIzaSyAx3b-2EPm2qPjYu6L07GCCKAkoF_z1sF0",
+      authDomain: "poralagbe-17c0e.firebaseapp.com",
+      databaseURL: "https://poralagbe-17c0e-default-rtdb.firebaseio.com",
+      projectId: "poralagbe-17c0e",
+      storageBucket: "poralagbe-17c0e.firebasestorage.app",
+      messagingSenderId: "380156491503",
+      appId: "1:380156491503:web:9983033564385f0b5d8d1a"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    // --- User Auth State ---
+    let userKey = null; // username
+
+    // --- Ensure chapterSearchValue is always defined ---
+    let chapterSearchValue = '';
+
+    // --- Auth Modal Logic ---
+    async function showLoginModal() {
+      return Swal.fire({
+        title: 'Login',
+        html: `
+          <input id="swal-username" class="swal2-input" placeholder="Username" autocomplete="username" />
+          <input id="swal-password" class="swal2-input" placeholder="Password" type="password" autocomplete="current-password" />
+          <div class="mt-2 text-xs text-blue-400">Don't have an account? <a href="#" id="swal-goto-register" class="underline text-blue-500">Register</a></div>
+        `,
+        showCancelButton: false,
+        confirmButtonText: 'Login',
+        allowOutsideClick: false,
+        didOpen: () => {
+          document.getElementById('swal-goto-register').onclick = (e) => {
+            e.preventDefault();
+            Swal.close();
+            showRegisterModal().then(handleAuthResult);
+          };
+        },
+        preConfirm: async () => {
+          const username = document.getElementById('swal-username').value.trim();
+          const password = document.getElementById('swal-password').value;
+          if (!username || !password) {
+            Swal.showValidationMessage('Enter username and password');
+            return false;
+          }
+          const snap = await db.ref('users/' + username).get();
+          if (!snap.exists()) {
+            Swal.showValidationMessage('No such user');
+            return false;
+          }
+          if (snap.val().password !== password) {
+            Swal.showValidationMessage('Wrong password');
+            return false;
+          }
+          return { username, password, isNew: false };
+        }
+      });
+    }
+
+    async function showRegisterModal() {
+      return Swal.fire({
+        title: 'Register',
+        html: `
+          <input id="swal-username" class="swal2-input" placeholder="Username" autocomplete="username" />
+          <input id="swal-password" class="swal2-input" placeholder="Password" type="password" autocomplete="new-password" />
+          <div class="mt-2 text-xs text-blue-400">Already have an account? <a href="#" id="swal-goto-login" class="underline text-blue-500">Login</a></div>
+        `,
+        showCancelButton: false,
+        confirmButtonText: 'Register',
+        allowOutsideClick: false,
+        didOpen: () => {
+          document.getElementById('swal-goto-login').onclick = (e) => {
+            e.preventDefault();
+            Swal.close();
+            showLoginModal().then(handleAuthResult);
+          };
+        },
+        preConfirm: async () => {
+          const username = document.getElementById('swal-username').value.trim();
+          const password = document.getElementById('swal-password').value;
+          if (!username || !password) {
+            Swal.showValidationMessage('Enter username and password');
+            return false;
+          }
+          const snap = await db.ref('users/' + username).get();
+          if (snap.exists()) {
+            Swal.showValidationMessage('Username already taken');
+            return false;
+          }
+          await db.ref('users/' + username).set({
+            password,
+            state: null,
+            statusConfig: null,
+            currentSubject: null,
+            theme: null
+          });
+          return { username, password, isNew: true };
+        }
+      });
+    }
+
+    // --- State Variables ---
+    const subjects = ['Bangla 1st','Bangla 2nd','English 1st','English 2nd','Physics 1st','Physics 2nd','Chemistry 1st','Chemistry 2nd','Biology 1st','Biology 2nd','Higher Math 1st','Higher Math 2nd','ICT'];
+    let statusConfig = {
+      'Physics 1st': ['Main Book','Parallel Text','Math Solving','MCQ','CQ','Concept Book','Eng QB','DU QB'],
+      'Physics 2nd': ['Main Book','Parallel Text','Math Solving','MCQ','CQ','Concept Book','Eng QB','DU QB'],
+      'Chemistry 1st': ['Main Book','Parallel Text','Math Solving','MCQ','CQ','Concept Book','Eng QB','DU QB'],
+      'Chemistry 2nd': ['Main Book','Parallel Text','Math Solving','MCQ','CQ','Concept Book','Eng QB','DU QB'],
+      'Higher Math 1st': ['Main Book','Parallel Text','Math Solving','MCQ','CQ','Concept Book','Eng QB','DU QB'],
+      'Higher Math 2nd': ['Main Book','Parallel Text','Math Solving','MCQ','CQ','Concept Book','Eng QB','DU QB'],
+      'Biology 1st': ['Main Book','Parallel Text','CQ','MCQ','DU QB'],
+      'Biology 2nd': ['Main Book','Parallel Text','CQ','MCQ','DU QB'],
+      'Bangla 1st': ['Main Book','Guide CQ','MCQ'],
+      'Bangla 2nd': ['QNA','Board'],
+      'English 1st': ['Reading','Word Meaning','Model Test'],
+      'English 2nd': ['Read Rules','Model Test'],
+      'ICT': ['Read Book','MCQ','CQ']
+    };
+    const classOptions = ['Telegram','College','Udvash Offline','Udvash Online','YouTube'];
+
+    let state = {
+      'Bangla 1st': [
+        { title: '1. বাঙ্গালার নব্য লেখক', classMode: [], statuses: {} },
+        { title: '2. অপরিচিতা', classMode: [], statuses: {} },
+        { title: '3. সাহিত্যে খেলা', classMode: [], statuses: {} },
+        { title: '4. বিলাসী', classMode: [], statuses: {} },
+        { title: '5. অর্ধাঙ্গী', classMode: [], statuses: {} },
+        { title: '6. যৌবনের গান', classMode: [], statuses: {} },
+        { title: '7. জীবন ও বৃক্ষ', classMode: [], statuses: {} },
+        { title: '8. গন্তব্য কাবুল', classMode: [], statuses: {} },
+        { title: '9. মাসি-পিসি', classMode: [], statuses: {} },
+        { title: '10. কপিলদাস মুর্মুর শেষ কাজ', classMode: [], statuses: {} },
+        { title: '11. রেইনকোট', classMode: [], statuses: {} },
+        { title: '12. নেকলেস', classMode: [], statuses: {} },
+        { title: '13. ঋতু বর্ণন', classMode: [], statuses: {} },
+        { title: '14. বিভীষণের প্রতি মেঘনাদ', classMode: [], statuses: {} },
+        { title: '15. সোনার তরী', classMode: [], statuses: {} },
+        { title: '16. বিদ্রোহী', classMode: [], statuses: {} },
+        { title: '17. সুচেতনা', classMode: [], statuses: {} },
+        { title: '18. প্রতিদান', classMode: [], statuses: {} },
+        { title: '19. তাহারেই পড়ে মনে', classMode: [], statuses: {} },
+        { title: '20. পদ্মা', classMode: [], statuses: {} },
+        { title: '21. আঠারো বছর বয়স', classMode: [], statuses: {} },
+        { title: '22. ফেব্রুয়ারি ১৯৬৯', classMode: [], statuses: {} },
+        { title: '23. আমি কিংবদন্তির কথা বলছি', classMode: [], statuses: {} },
+        { title: '24. প্রত্যাবর্তনের লজ্জা', classMode: [], statuses: {} },
+        { title: '25. নাটকঃ সিরাজউদ্দৌলা', classMode: [], statuses: {} },
+        { title: '26. উপন্যাসঃ লালসালু', classMode: [], statuses: {} }
+      ],
+      'Bangla 2nd': [],
+      'English 1st': [],
+      'English 2nd': [],
+      'Physics 1st': [
+        { title: '1. ভৌত জগত ও পরিমাপ', classMode: [], statuses: {} },
+        { title: '2. ভেক্টর', classMode: [], statuses: {} },
+        { title: '3. গতিবিদ্যা', classMode: [], statuses: {} },
+        { title: '4. নিউটনিয়ান বলবিদ্যা', classMode: [], statuses: {} },
+        { title: '5. কাজ, শক্তি ও ক্ষমতা', classMode: [], statuses: {} },
+        { title: '6. মহাকর্ষ ও অভিকর্ষ', classMode: [], statuses: {} },
+        { title: '7. পদার্থের গাঠনিক ধর্ম', classMode: [], statuses: {} },
+        { title: '8. পর্যাবৃত্ত গতি', classMode: [], statuses: {} },
+        { title: '9. তরঙ্গ', classMode: [], statuses: {} },
+        { title: '10. আদর্শ গ্যাস ও গ্যাসের গতিতত্ত', classMode: [], statuses: {} }
+      ],
+      'Physics 2nd': [
+        { title: '1. তাপগতিবিদ্যা', classMode: [], statuses: {} },
+        { title: '2. স্থির তড়িত', classMode: [], statuses: {} },
+        { title: '3. চল তড়িত', classMode: [], statuses: {} },
+        { title: '4. তড়িত প্রবাহের চৌম্বক ক্রিয়া', classMode: [], statuses: {} },
+        { title: '5. তড়িতচৌম্বকীয় আবেশ', classMode: [], statuses: {} },
+        { title: '6. জ্যামিতিক আলোকবিজ্ঞান', classMode: [], statuses: {} },
+        { title: '7. ভৌত আলোকবিজ্ঞান', classMode: [], statuses: {} },
+        { title: '8. পরমাণুর মডেল', classMode: [], statuses: {} },
+        { title: '9. সেমিকন্ডাক্টর ও ইলেট্রনিক্স', classMode: [], statuses: {} }
+      ],
+      'Chemistry 1st': [
+        { title: '1. ল্যাবরেটরির নিরাপদ ব্যবহার', classMode: [], statuses: {} },
+        { title: '2. গুণগত রসায়ন', classMode: [], statuses: {} },
+        { title: '3. মৌলের পর্যায়বৃত্ত ধর্ম ও রাসায়নিক বন্ধন', classMode: [], statuses: {} },
+        { title: '4. রাসায়নিক পরিবর্তন', classMode: [], statuses: {} },
+        { title: '5. কর্মমুখী রসায়ন', classMode: [], statuses: {} }
+      ],
+      'Chemistry 2nd': [
+        { title: '1. পরিবেশ রসায়ন', classMode: [], statuses: {} },
+        { title: '2. জৈব রসায়ন', classMode: [], statuses: {} },
+        { title: '3. পরিমাণগত রসায়n', classMode: [], statuses: {} },
+        { title: '4. তড়িৎ রসায়ন', classMode: [], statuses: {} },
+        { title: '5. অর্থনৈতিক রসায়ন', classMode: [], statuses: {} }
+      ],
+      'Higher Math 1st': [
+        { title: '1. ম্যাট্রিক্স', classMode: [], statuses: {} },
+        { title: '2. ভেক্টর', classMode: [], statuses: {} },
+        { title: '3. সরলরেখা', classMode: [], statuses: {} },
+        { title: '4. বৃত্ত', classMode: [], statuses: {} },
+        { title: '5. বিন্যাস', classMode: [], statuses: {} },
+        { title: '6. ত্রিকোণ্মিতিক অনুপাত', classMode: [], statuses: {} },
+        { title: '7. সংযুক্ত ও যৌগিক কোণের ত্রিকোণমিতিক অনুপাত', classMode: [], statuses: {} },
+        { title: '8. ফাংশন', classMode: [], statuses: {} },
+        { title: '9. অন্তরীকরণ', classMode: [], statuses: {} },
+        { title: '10. যোগজীকরণ', classMode: [], statuses: {} }
+      ],
+      'Higher Math 2nd': [
+        { title: '1. বাস্তব সংখ্যা', classMode: [], statuses: {} },
+        { title: '2. যোগাশ্রয়ী প্রোগ্রাম', classMode: [], statuses: {} },
+        { title: '3. জটিল সংখ্যা', classMode: [], statuses: {} },
+        { title: '4. বহুপদী', classMode: [], statuses: {} },
+        { title: '5. দ্বিপদী বিস্ততি', classMode: [], statuses: {} },
+        { title: '6. কনিক', classMode: [], statuses: {} },
+        { title: '7. বিপরীত ত্রিকোণমিতিক ফাংশন', classMode: [], statuses: {} },
+        { title: '8. স্থিতিবিদ্যা', classMode: [], statuses: {} },
+        { title: '9. সমতলে বস্তুকণার গতি', classMode: [], statuses: {} },
+        { title: '10. বিস্তার পরিমাপ ও সম্ভাবনা', classMode: [], statuses: {} }
+      ],
+      'Biology 1st': [
+        { title: '1. কোষ ও এর গঠন', classMode: [], statuses: {} },
+        { title: '2. কোষ বিভাজন', classMode: [], statuses: {} },
+        { title: '3. কোষ রসায়ন', classMode: [], statuses: {} },
+        { title: '4. অণুজীব', classMode: [], statuses: {} },
+        { title: '5. শৈবাল ও ছত্রাক', classMode: [], statuses: {} },
+        { title: '6. ব্রায়োফাইটা ও টেরিডোফাইটা', classMode: [], statuses: {} },
+        { title: '7. নগ্নবীজী ও আবৃওতবীজী উদ্ভিদ', classMode: [], statuses: {} },
+        { title: '8. টিস্যু ও টিস্যুতন্ত্র', classMode: [], statuses: {} },
+        { title: '9. উদ্ভিদের শারীরতত্ত্ব', classMode: [], statuses: {} },
+        { title: '10. উদ্ভিদের প্রজনন', classMode: [], statuses: {} },
+        { title: '11. জীবপ্রযুক্তি', classMode: [], statuses: {} },
+        { title: '12. জীবের পরিবেশ, বিস্তার ও সংরক্ষণ', classMode: [], statuses: {} }
+      ],
+      'Biology 2nd': [
+        { title: '1. প্রাণীর শ্রেণিবিন্যাস', classMode: [], statuses: {} },
+        { title: '2. প্রাণীর পরিচিতি', classMode: [], statuses: {} },
+        { title: '3. পরিপাক ও শোষণ', classMode: [], statuses: {} },
+        { title: '4. রক্ত ও সঞ্চালন', classMode: [], statuses: {} },
+        { title: '5. শ্বসন ও শ্বাসক্রিয়া', classMode: [], statuses: {} },
+        { title: '6. বর্জ্য ও নিষ্কাশন', classMode: [], statuses: {} },
+        { title: '7. চলন ও আঙ্গচালনা', classMode: [], statuses: {} },
+        { title: '8. সমন্বয় ও নিয়ন্ত্রণ', classMode: [], statuses: {} },
+        { title: '9. মানব জীবনের ধারাবাহিকতা', classMode: [], statuses: {} },
+        { title: '10. মানবদেহের প্রতিরক্ষা', classMode: [], statuses: {} },
+        { title: '11. জিনতত্ত্ব ও বিবর্তন', classMode: [], statuses: {} },
+        { title: '12. প্রাণীর আচরণ', classMode: [], statuses: {} }
+      ],
+      'ICT': [
+        { title: '1. বিশ্ব ও বাংলাদেশ প্রেক্ষিত', classMode: [], statuses: {} },
+        { title: '2. কমিউনিকেশন সিস্টেমস ও নেটওয়ার্কিং', classMode: [], statuses: {} },
+        { title: '3. সংখ্যা পদ্ধতি', classMode: [], statuses: {} },
+        { title: '4. ডিজিটাল ডিভাইস', classMode: [], statuses: {} },
+        { title: '5. ওয়েব ডিজাইন পরিচিতি', classMode: [], statuses: {} },
+        { title: '6. প্রোগ্রামিং ভাষা', classMode: [], statuses: {} },
+        { title: '7. ডেটাবেজ ম্যানেজমেন্ট সিস্টেম', classMode: [], statuses: {} }
+      ]
+    };
+    let currentSubject = subjects[0];
+    let lastRenderedSubject = null;
+    let lastChapterCount = 0;
+
+    // --- Firebase Data Sync ---
+    async function loadUserData(username) {
+      const snap = await db.ref('users/' + username).get();
+      if (snap.exists()) {
+        const data = snap.val();
+        state = data.state || {};
+        statusConfig = data.statusConfig || {};
+        currentSubject = data.currentSubject || subjects[0];
+        isDark = data.theme !== 'light';
+        // Ensure all subjects exist and are arrays
+        subjects.forEach(sub => {
+          if (!Array.isArray(state[sub])) state[sub] = [];
+          if (!Array.isArray(statusConfig[sub])) statusConfig[sub] = [];
+        });
+      } else {
+        // New user: use default state
+        state = {};
+        statusConfig = {};
+        subjects.forEach(sub => {
+          state[sub] = [];
+          statusConfig[sub] = [];
+        });
+        currentSubject = subjects[0];
+        isDark = true;
+      }
+    }
+    async function saveUserData() {
+      if (!userKey) return;
+      await db.ref('users/' + userKey).update({
+        state,
+        statusConfig,
+        currentSubject,
+        theme: isDark ? 'dark' : 'light'
+      });
+      renderProgressBar();
+    }
+
+    // --- Theme toggle ---
+    let isDark = true;
+    function applyTheme() {
+      document.body.classList.toggle('bg-gray-900', isDark);
+      document.body.classList.toggle('text-gray-100', isDark);
+      document.body.classList.toggle('bg-white', !isDark);
+      document.body.classList.toggle('text-gray-900', !isDark);
+    }
+
+    // --- Helper for toast ---
+    function showToast(icon, title) {
+      Swal.fire({
+        toast: true,
+        position: 'top-end',
+        showConfirmButton: false,
+        timer: 1200,
+        icon,
+        title,
+        timerProgressBar: true
+      });
+    }
+
+    // --- Auth Flow ---
+    async function handleAuthResult(result) {
+      if (!result || !result.value) return;
+      userKey = result.value.username;
+      sessionStorage.setItem('poralagbe_user', userKey);
+      document.getElementById('userDisplay').textContent = '👤 ' + userKey;
+      document.getElementById('logoutBtn').classList.remove('hidden');
+      await loadUserData(userKey);
+      applyTheme();
+      render();
+    }
+
+    async function mainAppFlow() {
+      // Try auto-login from sessionStorage
+      const savedUser = sessionStorage.getItem('poralagbe_user');
+      if (savedUser) {
+        userKey = savedUser;
+        document.getElementById('userDisplay').textContent = '👤 ' + userKey;
+        document.getElementById('logoutBtn').classList.remove('hidden');
+        await loadUserData(userKey);
+        applyTheme();
+        render();
+        return;
+      }
+      // Show login modal
+      showLoginModal().then(handleAuthResult);
+    }
+
+    // --- Logout ---
+    document.addEventListener('DOMContentLoaded', () => {
+      const logoutBtn = document.getElementById('logoutBtn');
+      logoutBtn.onclick = () => {
+        sessionStorage.removeItem('poralagbe_user');
+        userKey = null;
+        document.getElementById('userDisplay').textContent = '';
+        logoutBtn.classList.add('hidden');
+        // Clear UI and show login modal again
+        document.getElementById('chapterContainer').innerHTML = '';
+        document.getElementById('subjectNav').innerHTML = '';
+        mainAppFlow();
+      };
+    });
+
+    // --- Save/Load wrappers ---
+    // Debounce saveUserData to avoid excessive writes
+    let saveTimeout;
+    const saveState = () => {
+      clearTimeout(saveTimeout);
+      saveTimeout = setTimeout(() => {
+        saveUserData();
+      }, 200);
+    };
+    const saveNav = () => {
+      saveUserData();
+    };
+
+    // --- Replace initial state loading/rendering with login flow ---
+    mainAppFlow();
+
+    // --- All other event handlers and logic remain unchanged ---
+    document.getElementById('addChapterBtn').onclick = async () => {
+      const { value: title, isConfirmed } = await Swal.fire({
+        title: 'Add Chapter',
+        input: 'text',
+        inputLabel: 'Enter new chapter title:',
+        inputPlaceholder: 'Chapter title',
+        showCancelButton: true,
+        confirmButtonText: 'Add',
+        cancelButtonText: 'Cancel',
+        inputValidator: (value) => {
+          if (!value) return 'Please enter a chapter title!';
+          if (state[currentSubject].some(ch => ch.title.toLowerCase() === value.toLowerCase())) {
+            return 'Chapter title already exists in this subject!';
+          }
+        }
+      });
+      if (isConfirmed && title) {
+        state[currentSubject].push({ title, classMode: [], statuses: {} });
+        // Initialize chapter statuses with current subject statuses
+        state[currentSubject][state[currentSubject].length - 1].statuses = Object.fromEntries(
+          statusConfig[currentSubject].map(st => [st, false])
+        );
+        saveState();
+        render();
+        showToast('success', 'Added successfully');
+      } else if (isConfirmed && !title) {
+        showToast('error', 'Failed to add');
+      }
+    };
+
+    function renderSubjects() {
+      if (lastRenderedSubject === currentSubject) return;
+      lastRenderedSubject = currentSubject;
+      const deskNav = document.getElementById('subjectNav');
+      deskNav.innerHTML = '';
+      const mobNav = document.querySelector('#mobileSidebar nav');
+      mobNav.innerHTML = '';
+      subjects.forEach((sub, index) => {
+        const createBtn = () => {
+          const b = document.createElement('button');
+          b.textContent = sub;
+          b.className = `px-3 sm:px-4 py-1 sm:py-2 rounded-full text-xs sm:text-sm font-semibold shadow transition ${sub === currentSubject ? 'bg-blue-500 text-white' : 'bg-gray-800 text-blue-400 border border-gray-700'} hover:bg-blue-900 hover:text-blue-200 focus:outline-blue-400`;
+          b.setAttribute('tabindex', '0');
+          b.onclick = () => { currentSubject = sub; saveNav(); render(); if (window.innerWidth < 640) toggleSidebar(); };
+          b.onkeydown = (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              b.click();
+            }
+          };
+          return b;
+        };
+        deskNav.appendChild(createBtn());
+        mobNav.appendChild(createBtn());
+      });
+    }
+
+    function createDropdown(ch) {
+      const wrapper = document.createElement('div');
+      wrapper.className = 'relative mb-2 w-full';
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'w-full text-left bg-gray-800 text-blue-400 p-2 rounded focus:outline-blue-400 transition shadow hover:bg-blue-900';
+      btn.setAttribute('aria-haspopup', 'listbox');
+      btn.setAttribute('aria-label', 'Select Class Mode');
+      btn.textContent = ch.classMode.length ? ch.classMode.join(', ') : 'Select Class Mode';
+      const menu = document.createElement('div');
+      menu.className = 'absolute left-0 mt-1 w-full bg-gray-900 border border-blue-700 rounded shadow-lg hidden z-10 max-h-40 overflow-y-auto transition';
+      menu.setAttribute('role', 'listbox');
+      classOptions.forEach(opt => {
+        const item = document.createElement('label');
+        item.className = 'flex items-center px-2 py-1 hover:bg-blue-900 cursor-pointer rounded transition';
+        const cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.className = 'mr-2 accent-blue-400';
+        cb.checked = ch.classMode.includes(opt);
+        cb.onchange = () => {
+          if (cb.checked) ch.classMode.push(opt);
+          else ch.classMode = ch.classMode.filter(x => x !== opt);
+          btn.textContent = ch.classMode.length ? ch.classMode.join(', ') : 'Select Class Mode';
+          saveState();
+        };
+        item.append(cb, document.createTextNode(opt));
+        menu.appendChild(item);
+      });
+      btn.onclick = e => {
+        e.stopPropagation();
+        menu.classList.toggle('hidden');
+        btn.classList.toggle('ring-2');
+      };
+      btn.onkeydown = e => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          menu.classList.toggle('hidden');
+          btn.classList.toggle('ring-2');
+          if (!menu.classList.contains('hidden')) menu.querySelector('input').focus();
+        }
+      };
+      menu.onkeydown = e => {
+        const inputs = Array.from(menu.querySelectorAll('input'));
+        const currentIdx = inputs.indexOf(document.activeElement);
+        if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          inputs[(currentIdx + 1) % inputs.length].focus();
+        } else if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          inputs[(currentIdx - 1 + inputs.length) % inputs.length].focus();
+        } else if (e.key === 'Escape') {
+          menu.classList.add('hidden');
+          btn.classList.remove('ring-2');
+          btn.focus();
+        }
+      };
+      document.addEventListener('click', e => {
+        if (!wrapper.contains(e.target)) {
+          menu.classList.add('hidden');
+          btn.classList.remove('ring-2');
+        }
+      });
+      wrapper.append(btn, menu);
+      return wrapper;
+    }
+
+    function renderChapters() {
+      const cont = document.getElementById('chapterContainer');
+      // Defensive: ensure state[currentSubject] is always an array
+      const chapters = Array.isArray(state[currentSubject]) ? state[currentSubject] : [];
+      if (chapters.length === lastChapterCount && chapterSearchValue === '') return;
+      lastChapterCount = chapters.length;
+      cont.innerHTML = '';
+      renderProgressBar();
+      const statuses = statusConfig[currentSubject] || [];
+      // Defensive: ensure chapterSearchValue is defined
+      const filteredChapters = chapterSearchValue
+        ? chapters.filter(ch => ch.title && ch.title.toLowerCase().includes(chapterSearchValue))
+        : chapters;
+      filteredChapters.forEach((ch, i) => {
+        const card = document.createElement('div');
+        card.className = 'bg-gray-900 p-4 sm:p-6 rounded-xl shadow border border-gray-800 flex flex-col transition hover:scale-[1.02] focus-within:ring-2 ring-blue-400 w-full min-w-0';
+        card.tabIndex = 0;
+        card.onkeydown = e => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            card.click();
+          }
+        };
+        if (window.innerWidth < 640) {
+          card.classList.add('cursor-pointer');
+          card.onclick = () => {
+            ch._expanded = !ch._expanded;
+            renderChapters();
+          };
+          if (!ch._expanded) {
+            card.innerHTML = `<div class="text-blue-400 font-bold text-sm sm:text-base bangla-text">${ch.title}</div>`;
+            cont.append(card);
+            return;
+          }
+        }
+        const hd = document.createElement('div');
+        hd.className = 'flex flex-col mb-4 gap-2';
+        const title = document.createElement('h3');
+        title.textContent = ch.title; // Use pre-numbered title
+        title.className = 'text-lg sm:text-xl font-bold break-words text-blue-400 mb-2 bangla-text';
+        const btnGroup = document.createElement('div');
+        btnGroup.className = 'flex gap-1 flex-wrap';
+        const editBtn = document.createElement('button');
+        editBtn.textContent = '✏️';
+        editBtn.className = 'ml-2 px-2 py-1 rounded hover:bg-gray-800 focus:outline-blue-400 transition';
+        editBtn.setAttribute('aria-label', 'Edit chapter title');
+        editBtn.onclick = async () => {
+          const { value: t, isConfirmed } = await Swal.fire({
+            title: 'Edit Chapter',
+            input: 'text',
+            inputLabel: 'Edit title:',
+            inputValue: ch.title.replace(/^\d+\.\s*/, ''), // Remove number for editing
+            showCancelButton: true,
+            confirmButtonText: 'Save',
+            cancelButtonText: 'Cancel',
+            inputValidator: (value) => {
+              if (!value) return 'Please enter a chapter title!';
+              if (state[currentSubject].some(c => c.title.toLowerCase() === (i + 1 + '. ' + value).toLowerCase() && c !== ch)) {
+                return 'Chapter title already exists in this subject!';
+              }
+            }
+          });
+          if (isConfirmed && t) {
+            ch.title = (i + 1) + '. ' + t; // Reapply number
+            saveState();
+            render();
+            showToast('success', 'Edited successfully');
+          } else if (isConfirmed && !t) {
+            showToast('error', 'Failed to edit');
+          }
+        };
+        const delBtn = document.createElement('button');
+        delBtn.textContent = '🗑️';
+        delBtn.className = 'ml-2 px-2 py-1 rounded hover:bg-red-900 focus:outline-red-400 transition';
+        delBtn.setAttribute('aria-label', 'Delete chapter');
+        delBtn.onclick = async () => {
+          const result = await Swal.fire({
+            title: 'Delete Chapter',
+            text: 'Are you sure you want to delete this chapter?',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Delete',
+            cancelButtonText: 'Cancel'
+          });
+          if (result.isConfirmed) {
+            chapters.splice(i, 1);
+            saveState();
+            render();
+            showToast('success', 'Deleted successfully');
+          } else if (result.dismiss === Swal.DismissReason.cancel) {
+            showToast('error', 'Delete cancelled');
+          }
+        };
+        const notesBtn = document.createElement('button');
+        notesBtn.textContent = '📝';
+        notesBtn.className = 'ml-2 px-2 py-1 rounded hover:bg-gray-800 focus:outline-blue-400 transition';
+        notesBtn.setAttribute('aria-label', 'Edit notes');
+        notesBtn.onclick = async () => {
+          const { value: note, isConfirmed } = await Swal.fire({
+            title: 'Chapter Notes',
+            input: 'textarea',
+            inputLabel: 'Add/Edit notes for this chapter:',
+            inputValue: ch.notes || '',
+            showCancelButton: true,
+            confirmButtonText: 'Save',
+            cancelButtonText: 'Cancel'
+          });
+          if (isConfirmed) {
+            ch.notes = note;
+            saveState();
+            showToast('success', 'Notes saved');
+          }
+        };
+        const deadlineBtn = document.createElement('button');
+        deadlineBtn.textContent = '⏰';
+        deadlineBtn.className = 'ml-2 px-2 py-1 rounded hover:bg-gray-800 focus:outline-blue-400 transition';
+        deadlineBtn.setAttribute('aria-label', 'Set deadline');
+        deadlineBtn.onclick = async () => {
+          const { value: date, isConfirmed } = await Swal.fire({
+            title: 'Set Deadline',
+            input: 'date',
+            inputLabel: 'Pick a deadline for this chapter:',
+            inputValue: ch.deadline || '',
+            showCancelButton: true,
+            confirmButtonText: 'Save',
+            cancelButtonText: 'Cancel'
+          });
+          if (isConfirmed) {
+            ch.deadline = date;
+            saveState();
+            showToast('success', 'Deadline saved');
+            render();
+          }
+        };
+        const upBtn = document.createElement('button');
+        upBtn.textContent = '⬆️';
+        upBtn.className = 'ml-2 px-2 py-1 rounded hover:bg-gray-800 focus:outline-blue-400 transition';
+        upBtn.setAttribute('aria-label', 'Move chapter up');
+        upBtn.disabled = i === 0;
+        upBtn.onclick = () => {
+          if (i > 0) {
+            [filteredChapters[i - 1], filteredChapters[i]] = [filteredChapters[i], filteredChapters[i - 1]];
+            saveState();
+            render();
+          }
+        };
+        const downBtn = document.createElement('button');
+        downBtn.textContent = '⬇️';
+        downBtn.className = 'ml-2 px-2 py-1 rounded hover:bg-gray-800 focus:outline-blue-400 transition';
+        downBtn.setAttribute('aria-label', 'Move chapter down');
+        downBtn.disabled = i === filteredChapters.length - 1;
+        downBtn.onclick = () => {
+          if (i < filteredChapters.length - 1) {
+            [filteredChapters[i + 1], filteredChapters[i]] = [filteredChapters[i], filteredChapters[i + 1]];
+            saveState();
+            render();
+          }
+        };
+        btnGroup.append(editBtn, delBtn, notesBtn, deadlineBtn, upBtn, downBtn);
+        hd.append(title, btnGroup);
+        card.append(hd);
+        if (ch.deadline) {
+          const deadlineDiv = document.createElement('div');
+          deadlineDiv.className = 'text-xs text-red-400 mb-2';
+          deadlineDiv.textContent = `Deadline: ${ch.deadline}`;
+          card.append(deadlineDiv);
+        }
+        card.append(createDropdown(ch));
+        statuses.forEach(st => {
+          const row = document.createElement('div');
+          row.className = 'flex justify-between items-center py-1';
+          const lbl = document.createElement('span');
+          lbl.textContent = st;
+          lbl.className = 'text-blue-400 font-medium text-sm sm:text-base';
+          const cb = document.createElement('input');
+          cb.type = 'checkbox';
+          cb.checked = ch.statuses[st] || false;
+          cb.className = 'accent-blue-400 focus:outline-blue-400 scale-125 transition';
+          cb.setAttribute('aria-label', `Mark ${st} as complete`);
+          cb.onchange = () => {
+            ch.statuses[st] = cb.checked;
+            saveState();
+            renderProgressBar();
+          };
+          row.append(lbl, cb);
+          card.append(row);
+        });
+        if (ch.notes) {
+          const notesDiv = document.createElement('div');
+          notesDiv.className = 'mt-2 text-xs text-gray-400 whitespace-pre-line';
+          notesDiv.textContent = `Notes: ${ch.notes}`;
+          card.append(notesDiv);
+        }
+        cont.append(card);
+      });
+    }
+
+    function render() {
+      renderSubjects();
+      renderChapters();
+    }
+    render();
+
+    // Close dropdowns when clicking outside
+    document.addEventListener('click', (e) => {
+      const toolsDropdown = document.getElementById('toolsDropdown');
+      const toolsBtn = document.getElementById('toolsBtn');
+      if (!toolsBtn.contains(e.target) && !toolsDropdown.contains(e.target)) {
+        toolsDropdown.classList.add('hidden');
+      }
+      const universalDropdown = document.getElementById('universalSearchDropdown');
+      const universalSearch = document.getElementById('universalSearch');
+      if (!universalSearch.contains(e.target) && !universalDropdown.contains(e.target)) {
+        universalDropdown.classList.add('hidden');
+      }
+    });
+
+    // --- Add event listener for chapter search input ---
+    document.addEventListener('DOMContentLoaded', () => {
+      const chapterSearchInput = document.getElementById('chapterSearch');
+      if (chapterSearchInput) {
+        chapterSearchInput.addEventListener('input', (e) => {
+          chapterSearchValue = e.target.value.toLowerCase();
+          renderChapters();
+        });
+      }
+    });
+  </script>
+</body>
+</html>
